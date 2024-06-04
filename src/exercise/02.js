@@ -31,7 +31,7 @@ function dataReducer(state, action) {
   }
 }
 
-function useAsync(cb, initialState, dependencies) {
+function useAsync(initialState) {
   const [state, dispatch] = React.useReducer(dataReducer, {
     data: null,
     error: null,
@@ -39,8 +39,7 @@ function useAsync(cb, initialState, dependencies) {
     ...initialState,
   })
 
-  React.useEffect(() => {
-    const promise = cb()
+  const run = promise => {
     if (!promise) {
       return
     }
@@ -53,21 +52,21 @@ function useAsync(cb, initialState, dependencies) {
         dispatch({type: 'rejected', error})
       },
     )
-  }, dependencies)
+  }
 
-  return state
+  return {...state, run: React.useCallback(run, [])}
 }
 
 function PokemonInfo({pokemonName}) {
-  const state = useAsync(
-    () => {
-      if (!pokemonName) return
-      return fetchPokemon(pokemonName)
-    },
-    {status: pokemonName ? 'pending' : 'idle'},
-    [pokemonName],
-  )
-  const {data, status, error} = state
+  const {data, status, error, run} = useAsync({
+    status: pokemonName ? 'pending' : 'idle',
+  })
+
+  React.useEffect(() => {
+    if (!pokemonName) return
+    const promise = fetchPokemon(pokemonName)
+    run(promise)
+  }, [pokemonName, run])
 
   switch (status) {
     case 'idle':
